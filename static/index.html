@@ -5,67 +5,61 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GeoJSON Decimal Places Fixer</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <style>
-        .drop-zone {
-            border: 2px dashed #ccc;
-            transition: all 0.3s ease;
-        }
-        .drop-zone.dragover {
-            border-color: #4CAF50;
-            background-color: #f1f8e9;
-        }
-    </style>
 </head>
 <body class="bg-gray-100">
     <div class="container mx-auto px-4 py-8 max-w-4xl">
-        <header class="text-center mb-8">
-            <h1 class="text-3xl font-bold text-gray-800 mb-2">GeoJSON Decimal Places Fixer</h1>
-            <p class="text-gray-600">Fix decimal places in your GeoJSON coordinates</p>
-        </header>
-
-        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
-            <form id="uploadForm" class="space-y-6">
-                <!-- File Upload -->
-                <div>
-                    <label class="block text-gray-700 text-sm font-bold mb-2">Upload Files</label>
-                    <div id="dropZone" class="drop-zone rounded-lg p-8 text-center cursor-pointer">
-                        <div class="text-gray-600">
-                            <p>Drag & drop your GeoJSON files here</p>
-                            <p class="text-sm">or</p>
-                            <button type="button" id="browseBtn" class="mt-2 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">
-                                Browse Files
-                            </button>
-                        </div>
-                        <input type="file" id="fileInput" multiple accept=".json,.geojson" class="hidden">
+        <form id="uploadForm" class="space-y-6">
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-xl font-bold mb-4">Upload Files</h2>
+                <div 
+                    id="dropZone" 
+                    class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-blue-500 transition-colors"
+                >
+                    <p class="text-gray-600">Drag & drop your GeoJSON files here</p>
+                    <p class="text-sm text-gray-500">or</p>
+                    <div class="space-x-4">
+                        <button type="button" id="browseFilesBtn" class="mt-2 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">
+                            Select Files
+                        </button>
+                        <button type="button" id="browseDirBtn" class="mt-2 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">
+                            Select Directory
+                        </button>
                     </div>
-                    <div id="fileList" class="mt-4 space-y-2"></div>
+                    <input type="file" id="fileInput" multiple accept=".json,.geojson" class="hidden">
+                    <input type="file" id="dirInput" webkitdirectory directory class="hidden">
                 </div>
+                <div id="fileList" class="mt-4 space-y-2"></div>
+            </div>
 
-                <!-- Options -->
-                <div class="grid grid-cols-2 gap-4">
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-xl font-bold mb-4">Options</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-gray-700 text-sm font-bold mb-2">Minimum Decimal Places</label>
-                        <input type="number" id="minDecimals" value="6" min="1" max="10"
-                               class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">
+                            Minimum Decimal Places
+                        </label>
+                        <input type="number" id="minDecimals" name="min_decimals" value="6" min="1" max="10"
+                            class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
                     </div>
                     <div>
-                        <label class="block text-gray-700 text-sm font-bold mb-2">Output File Prefix</label>
-                        <input type="text" id="prefix" value="fixed_"
-                               class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">
+                            Output File Prefix
+                        </label>
+                        <input type="text" id="prefix" name="prefix" value="fixed_"
+                            class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
                     </div>
                 </div>
+            </div>
 
-                <!-- Submit Button -->
-                <div class="text-center">
-                    <button type="submit" id="submitBtn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed">
-                        Process Files
-                    </button>
-                </div>
-            </form>
-        </div>
+            <div class="text-center">
+                <button type="submit" id="submitBtn" 
+                    class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-8 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                    Process Files
+                </button>
+            </div>
+        </form>
 
-        <!-- Progress and Results -->
-        <div id="results" class="bg-white rounded-lg shadow-lg p-6 hidden">
+        <div id="results" class="mt-8 bg-white rounded-lg shadow-lg p-6 hidden">
             <h2 class="text-xl font-bold mb-4">Processing Results</h2>
             <div id="resultsList" class="space-y-4"></div>
         </div>
@@ -73,88 +67,138 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('uploadForm');
             const dropZone = document.getElementById('dropZone');
             const fileInput = document.getElementById('fileInput');
-            const browseBtn = document.getElementById('browseBtn');
+            const dirInput = document.getElementById('dirInput');
+            const browseFilesBtn = document.getElementById('browseFilesBtn');
+            const browseDirBtn = document.getElementById('browseDirBtn');
             const fileList = document.getElementById('fileList');
-            const form = document.getElementById('uploadForm');
             const results = document.getElementById('results');
             const resultsList = document.getElementById('resultsList');
+            const submitBtn = document.getElementById('submitBtn');
 
-            // File selection via button
-            browseBtn.addEventListener('click', () => fileInput.click());
+            browseFilesBtn.addEventListener('click', () => fileInput.click());
+            browseDirBtn.addEventListener('click', () => dirInput.click());
 
-            // Handle file selection
+            // Prevent default drag behaviors
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, preventDefaults, false);
+                document.body.addEventListener(eventName, preventDefaults, false);
+            });
+
+            // Highlight drop zone when item is dragged over it
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, highlight, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, unhighlight, false);
+            });
+
+            // Handle dropped files
+            dropZone.addEventListener('drop', handleDrop, false);
             fileInput.addEventListener('change', handleFiles);
+            dirInput.addEventListener('change', handleFiles);
 
-            // Drag and drop handlers
-            dropZone.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                dropZone.classList.add('dragover');
-            });
+            function handleFiles(event) {
+                const files = Array.from(event.target.files).filter(file => 
+                    file.name.endsWith('.json') || file.name.endsWith('.geojson')
+                );
+                
+                if (files.length === 0) {
+                    alert('No .json or .geojson files found in selection');
+                    return;
+                }
 
-            dropZone.addEventListener('dragleave', () => {
-                dropZone.classList.remove('dragover');
-            });
+                fileList.innerHTML = '';
+                files.forEach(file => {
+                    const fileDiv = document.createElement('div');
+                    fileDiv.className = 'flex items-center space-x-2 bg-gray-50 p-2 rounded';
+                    fileDiv.innerHTML = `
+                        <svg class="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd" />
+                        </svg>
+                        <span class="text-sm text-gray-700">${file.name}</span>
+                    `;
+                    fileList.appendChild(fileDiv);
+                });
 
-            dropZone.addEventListener('drop', (e) => {
-                e.preventDefault();
-                dropZone.classList.remove('dragover');
-                handleFiles({ target: { files: e.dataTransfer.files } });
-            });
+                // Store filtered files back in the input that triggered the change
+                const dataTransfer = new DataTransfer();
+                files.forEach(file => dataTransfer.items.add(file));
+                event.target.files = dataTransfer.files;
+            }
 
-            // Form submission
             form.addEventListener('submit', async (e) => {
                 e.preventDefault();
-                const submitBtn = document.getElementById('submitBtn');
                 submitBtn.disabled = true;
-                
+                results.classList.add('hidden');
+
                 try {
                     const formData = new FormData();
-                    const files = fileInput.files;
-                    const minDecimals = document.getElementById('minDecimals').value;
-                    const prefix = document.getElementById('prefix').value;
+                    
+                    // Get files from both inputs
+                    const selectedFiles = fileInput.files.length > 0 ? fileInput.files : dirInput.files;
+                    
+                    if (selectedFiles.length === 0) {
+                        throw new Error('Please select at least one .json or .geojson file');
+                    }
 
-                    Array.from(files).forEach(file => {
+                    // Add files to form data
+                    Array.from(selectedFiles).forEach(file => {
                         formData.append('files', file);
                     });
-                    formData.append('min_decimals', minDecimals);
-                    formData.append('prefix', prefix);
+
+                    // Add other form data
+                    formData.append('min_decimals', document.getElementById('minDecimals').value);
+                    formData.append('prefix', document.getElementById('prefix').value);
 
                     const response = await fetch('/process', {
                         method: 'POST',
                         body: formData
                     });
 
-                    const data = await response.json();
-                    
-                    if (response.ok) {
-                        displayResults(data);
-                    } else {
-                        throw new Error(data.detail || 'Processing failed');
+                    if (!response.ok) {
+                        const contentType = response.headers.get('content-type');
+                        if (contentType && contentType.includes('application/json')) {
+                            const errorData = await response.json();
+                            throw new Error(errorData.detail || 'Processing failed');
+                        } else {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
                     }
+
+                    const result = await response.json();
+                    displayResults(result);
+                    
                 } catch (error) {
-                    alert(error.message);
+                    alert(`Error: ${error.message}`);
                 } finally {
                     submitBtn.disabled = false;
                 }
             });
 
-            function handleFiles(event) {
-                const files = event.target.files;
-                fileList.innerHTML = '';
-                
-                Array.from(files).forEach(file => {
-                    const fileItem = document.createElement('div');
-                    fileItem.className = 'flex items-center text-gray-700 bg-gray-100 rounded p-2';
-                    fileItem.innerHTML = `
-                        <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z"></path>
-                        </svg>
-                        ${file.name}
-                    `;
-                    fileList.appendChild(fileItem);
-                });
+            function preventDefaults (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            function highlight(e) {
+                dropZone.classList.add('border-blue-500');
+                dropZone.classList.add('bg-blue-50');
+            }
+
+            function unhighlight(e) {
+                dropZone.classList.remove('border-blue-500');
+                dropZone.classList.remove('bg-blue-50');
+            }
+
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                fileInput.files = files;
+                handleFiles({ target: { files } });
             }
 
             function displayResults(data) {
@@ -162,14 +206,15 @@
                 resultsList.innerHTML = '';
 
                 data.processed_files.forEach(file => {
-                    const resultItem = document.createElement('div');
-                    resultItem.className = 'bg-gray-50 rounded p-4';
+                    const resultDiv = document.createElement('div');
+                    resultDiv.className = 'bg-gray-50 rounded p-4';
                     
-                    // Create download link
-                    const blob = new Blob([JSON.stringify(file.processed_data, null, 2)], { type: 'application/json' });
+                    const blob = new Blob([JSON.stringify(file.processed_data, null, 2)], {
+                        type: 'application/json'
+                    });
                     const url = URL.createObjectURL(blob);
                     
-                    resultItem.innerHTML = `
+                    resultDiv.innerHTML = `
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="font-semibold">${file.original_name}</p>
@@ -182,7 +227,7 @@
                         </div>
                     `;
                     
-                    resultsList.appendChild(resultItem);
+                    resultsList.appendChild(resultDiv);
                 });
             }
         });

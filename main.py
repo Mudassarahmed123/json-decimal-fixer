@@ -1,12 +1,10 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 import json
 import os
 from typing import List
-import shutil
 from pathlib import Path
 
 app = FastAPI(title="GeoJSON Decimal Places Fixer")
@@ -20,31 +18,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount static files
-app.mount("/static", StaticFiles(directory="static"), name="static")
-app.mount("/", StaticFiles(directory="static", html=True), name="root")
+# Create a router for API endpoints
+from fastapi import APIRouter
+router = APIRouter()
 
-# Process directory function
-def process_directory(directory_path: str, min_decimals: int) -> List[dict]:
-    processed_files = []
-    for root, _, files in os.walk(directory_path):
-        for file in files:
-            if file.endswith(('.json', '.geojson')):
-                file_path = os.path.join(root, file)
-                try:
-                    with open(file_path, 'r') as f:
-                        data = json.load(f)
-                    processed_data = process_geojson(data, min_decimals)
-                    processed_files.append({
-                        "original_name": file,
-                        "processed_name": f"fixed_{file}",
-                        "processed_data": processed_data
-                    })
-                except Exception as e:
-                    print(f"Error processing {file}: {str(e)}")
-    return processed_files
-
-@app.post("/process")
+@router.post("/process")
 async def process_files(
     files: List[UploadFile] = File(...),
     min_decimals: int = Form(6),
@@ -121,8 +99,15 @@ def process_geojson(data, min_decimals):
             )
     return result
 
+# Include the router
+app.include_router(router)
 
+# Mount static files AFTER including the router
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Mount root route last
+app.mount("/", StaticFiles(directory="static", html=True), name="root")
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

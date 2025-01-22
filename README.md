@@ -15,7 +15,7 @@ A web application for fixing decimal places in GeoJSON coordinates. This tool en
 
 ## Live Demo
 
-Access the live application at: [Your-App-URL]
+Access the live application at: [https://json-decimal-fixer.onrender.com]
 
 ## Local Development
 

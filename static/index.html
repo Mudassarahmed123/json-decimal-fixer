@@ -5,62 +5,141 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GeoJSON Decimal Places Fixer</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 3px solid #3498db;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            0% { opacity: 0; }
+            100% { opacity: 1; }
+        }
+    </style>
 </head>
 <body class="bg-gray-100">
     <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">GeoJSON Decimal Places Fixer</h1>
+            <p class="text-gray-600">Fix decimal places in your GeoJSON coordinates to meet EUDR requirements</p>
+        </div>
+
         <form id="uploadForm" class="space-y-6">
+            <!-- Upload Section -->
             <div class="bg-white rounded-lg shadow-lg p-6">
-                <h2 class="text-xl font-bold mb-4">Upload Files</h2>
+                <h2 class="text-xl font-bold mb-4 flex items-center">
+                    <svg class="w-6 h-6 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                    </svg>
+                    Upload Files
+                </h2>
                 <div 
                     id="dropZone" 
                     class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-blue-500 transition-colors"
                 >
-                    <p class="text-gray-600">Drag & drop your GeoJSON files here</p>
-                    <p class="text-sm text-gray-500">or</p>
-                    <div class="space-x-4">
-                        <button type="button" id="browseFilesBtn" class="mt-2 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">
-                            Select Files
-                        </button>
-                        <button type="button" id="browseDirBtn" class="mt-2 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">
-                            Select Directory
-                        </button>
+                    <div class="space-y-4">
+                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                        </svg>
+                        <p class="text-gray-600">Drag & drop your GeoJSON files here</p>
+                        <p class="text-sm text-gray-500">or</p>
+                        <div class="space-x-4">
+                            <button type="button" id="browseFilesBtn" class="mt-2 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded inline-flex items-center">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+                                </svg>
+                                Select Files
+                            </button>
+                            <button type="button" id="browseDirBtn" class="mt-2 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded inline-flex items-center">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                                </svg>
+                                Select Directory
+                            </button>
+                        </div>
                     </div>
                     <input type="file" id="fileInput" multiple accept=".json,.geojson" class="hidden">
                     <input type="file" id="dirInput" webkitdirectory directory class="hidden">
                 </div>
+
+                <!-- File List -->
                 <div id="fileList" class="mt-4 space-y-2"></div>
+                
+                <!-- Processing Status -->
+                <div id="processingStatus" class="mt-4 hidden">
+                    <div class="flex items-center space-x-2 text-blue-600">
+                        <div class="spinner"></div>
+                        <span>Processing files...</span>
+                    </div>
+                    <div class="mt-2 bg-blue-100 rounded-full h-2">
+                        <div id="progressBar" class="bg-blue-600 rounded-full h-2 transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </div>
             </div>
 
+            <!-- Options Section -->
             <div class="bg-white rounded-lg shadow-lg p-6">
-                <h2 class="text-xl font-bold mb-4">Options</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <h2 class="text-xl font-bold mb-4 flex items-center">
+                    <svg class="w-6 h-6 mr-2 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                    Options
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label class="block text-gray-700 text-sm font-bold mb-2">
                             Minimum Decimal Places
                         </label>
-                        <input type="number" id="minDecimals" name="min_decimals" value="6" min="1" max="10"
-                            class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                        <div class="relative">
+                            <input type="number" id="minDecimals" name="min_decimals" value="6" min="1" max="10"
+                                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                <span class="text-gray-500 text-sm">(1-10)</span>
+                            </div>
+                        </div>
                     </div>
                     <div>
                         <label class="block text-gray-700 text-sm font-bold mb-2">
                             Output File Prefix
                         </label>
                         <input type="text" id="prefix" name="prefix" value="fixed_"
-                            class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                            class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                 </div>
             </div>
 
+            <!-- Submit Button -->
             <div class="text-center">
                 <button type="submit" id="submitBtn" 
-                    class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-8 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                    class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-8 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
                     Process Files
                 </button>
             </div>
         </form>
 
+        <!-- Results Section -->
         <div id="results" class="mt-8 bg-white rounded-lg shadow-lg p-6 hidden">
-            <h2 class="text-xl font-bold mb-4">Processing Results</h2>
+            <h2 class="text-xl font-bold mb-4 flex items-center">
+                <svg class="w-6 h-6 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                Processing Results
+            </h2>
             <div id="resultsList" class="space-y-4"></div>
         </div>
     </div>
@@ -77,6 +156,8 @@
             const results = document.getElementById('results');
             const resultsList = document.getElementById('resultsList');
             const submitBtn = document.getElementById('submitBtn');
+            const processingStatus = document.getElementById('processingStatus');
+            const progressBar = document.getElementById('progressBar');
 
             browseFilesBtn.addEventListener('click', () => fileInput.click());
             browseDirBtn.addEventListener('click', () => dirInput.click());
@@ -114,12 +195,15 @@
                 fileList.innerHTML = '';
                 files.forEach(file => {
                     const fileDiv = document.createElement('div');
-                    fileDiv.className = 'flex items-center space-x-2 bg-gray-50 p-2 rounded';
+                    fileDiv.className = 'flex items-center justify-between bg-gray-50 p-3 rounded fade-in';
                     fileDiv.innerHTML = `
-                        <svg class="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd" />
-                        </svg>
-                        <span class="text-sm text-gray-700">${file.name}</span>
+                        <div class="flex items-center space-x-3">
+                            <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                            <span class="text-sm text-gray-700">${file.name}</span>
+                        </div>
+                        <span class="text-xs text-gray-500">${formatFileSize(file.size)}</span>
                     `;
                     fileList.appendChild(fileDiv);
                 });
@@ -130,10 +214,20 @@
                 event.target.files = dataTransfer.files;
             }
 
+            function formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+
             form.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 submitBtn.disabled = true;
                 results.classList.add('hidden');
+                processingStatus.classList.remove('hidden');
+                progressBar.style.width = '0%';
 
                 try {
                     const formData = new FormData();
@@ -154,10 +248,21 @@
                     formData.append('min_decimals', document.getElementById('minDecimals').value);
                     formData.append('prefix', document.getElementById('prefix').value);
 
+                    // Simulate progress
+                    let progress = 0;
+                    const progressInterval = setInterval(() => {
+                        progress += 5;
+                        if (progress > 90) clearInterval(progressInterval);
+                        progressBar.style.width = `${Math.min(progress, 90)}%`;
+                    }, 100);
+
                     const response = await fetch('/process', {
                         method: 'POST',
                         body: formData
                     });
+
+                    clearInterval(progressInterval);
+                    progressBar.style.width = '100%';
 
                     if (!response.ok) {
                         const contentType = response.headers.get('content-type');
@@ -170,9 +275,13 @@
                     }
 
                     const result = await response.json();
-                    displayResults(result);
+                    setTimeout(() => {
+                        processingStatus.classList.add('hidden');
+                        displayResults(result);
+                    }, 500);
                     
                 } catch (error) {
+                    processingStatus.classList.add('hidden');
                     alert(`Error: ${error.message}`);
                 } finally {
                     submitBtn.disabled = false;
@@ -207,7 +316,7 @@
 
                 data.processed_files.forEach(file => {
                     const resultDiv = document.createElement('div');
-                    resultDiv.className = 'bg-gray-50 rounded p-4';
+                    resultDiv.className = 'bg-gray-50 rounded p-4 fade-in';
                     
                     const blob = new Blob([JSON.stringify(file.processed_data, null, 2)], {
                         type: 'application/json'
@@ -216,12 +325,20 @@
                     
                     resultDiv.innerHTML = `
                         <div class="flex items-center justify-between">
-                            <div>
-                                <p class="font-semibold">${file.original_name}</p>
+                            <div class="space-y-1">
+                                <div class="flex items-center space-x-2">
+                                    <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                    <p class="font-semibold">${file.original_name}</p>
+                                </div>
                                 <p class="text-sm text-gray-600">Processed as: ${file.processed_name}</p>
                             </div>
                             <a href="${url}" download="${file.processed_name}" 
-                               class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">
+                               class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded inline-flex items-center">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                </svg>
                                 Download
                             </a>
                         </div>

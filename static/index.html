@@ -292,6 +292,7 @@
 
     <script>
         let currentFiles = null;
+        let currentMap = null;
 
         function resetFileInputs() {
             document.getElementById('fileInput').value = '';
@@ -324,6 +325,12 @@
             // Show selected tab and activate its button
             document.getElementById(tabName).classList.add('active');
             document.getElementById(tabName + 'Tab').classList.add('active');
+            
+            // Clean up map when switching tabs
+            if (currentMap) {
+                currentMap.setTarget(null);
+                currentMap = null;
+            }
             
             // Reset file inputs when switching tabs
             resetFileInputs();
@@ -582,6 +589,22 @@
             formData.append('file', file);
             
             try {
+                // Read file content first
+                const fileContent = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = e => resolve(e.target.result);
+                    reader.onerror = e => reject(e);
+                    reader.readAsText(file);
+                });
+                
+                // Store GeoJSON content
+                try {
+                    window.currentGeoJSON = JSON.parse(fileContent);
+                } catch (e) {
+                    console.error('Error parsing file:', e);
+                }
+                
+                // Validate with backend
                 const response = await fetch('/validate', {
                     method: 'POST',
                     body: formData
@@ -592,17 +615,8 @@
                 }
                 
                 const data = await response.json();
-                
-                // Store the file content for map display
-                if (data.geometry_valid) {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        window.currentGeoJSON = JSON.parse(e.target.result);
-                    };
-                    reader.readAsText(file);
-                }
-                
                 displayValidationResults(data);
+                
             } catch (error) {
                 const validatorResults = document.getElementById('validatorResults');
                 validatorResults.innerHTML = `
@@ -724,55 +738,71 @@
 
         function initMap() {
             if (!window.currentGeoJSON) return;
+            
+            try {
+                // Clean up existing map if it exists
+                if (currentMap) {
+                    currentMap.setTarget(null);
+                    currentMap = null;
+                }
+                
+                // Create vector source from GeoJSON
+                const vectorSource = new ol.source.Vector({
+                    features: new ol.format.GeoJSON().readFeatures(window.currentGeoJSON, {
+                        featureProjection: 'EPSG:3857',
+                        dataProjection: 'EPSG:4326'
+                    })
+                });
 
-            // Create vector source from GeoJSON
-            const vectorSource = new ol.source.Vector({
-                features: new ol.format.GeoJSON().readFeatures(window.currentGeoJSON, {
-                    featureProjection: 'EPSG:3857'
-                })
-            });
-
-            // Create vector layer
-            const vectorLayer = new ol.layer.Vector({
-                source: vectorSource,
-                style: new ol.style.Style({
-                    fill: new ol.style.Fill({
-                        color: 'rgba(66, 153, 225, 0.2)'
-                    }),
-                    stroke: new ol.style.Stroke({
-                        color: '#4299e1',
-                        width: 2
-                    }),
-                    image: new ol.style.Circle({
-                        radius: 7,
+                // Create vector layer
+                const vectorLayer = new ol.layer.Vector({
+                    source: vectorSource,
+                    style: new ol.style.Style({
                         fill: new ol.style.Fill({
-                            color: '#4299e1'
+                            color: 'rgba(66, 153, 225, 0.2)'
+                        }),
+                        stroke: new ol.style.Stroke({
+                            color: '#4299e1',
+                            width: 2
+                        }),
+                        image: new ol.style.Circle({
+                            radius: 7,
+                            fill: new ol.style.Fill({
+                                color: '#4299e1'
+                            }),
+                            stroke: new ol.style.Stroke({
+                                color: '#fff',
+                                width: 2
+                            })
                         })
                     })
-                })
-            });
+                });
 
-            // Create map
-            const map = new ol.Map({
-                target: 'map',
-                layers: [
-                    new ol.layer.Tile({
-                        source: new ol.source.OSM()
-                    }),
-                    vectorLayer
-                ],
-                view: new ol.View({
-                    center: [0, 0],
-                    zoom: 2
-                })
-            });
+                // Create map
+                currentMap = new ol.Map({
+                    target: 'map',
+                    layers: [
+                        new ol.layer.Tile({
+                            source: new ol.source.OSM()
+                        }),
+                        vectorLayer
+                    ],
+                    view: new ol.View({
+                        center: [0, 0],
+                        zoom: 2
+                    })
+                });
 
-            // Fit view to vector source extent
-            const extent = vectorSource.getExtent();
-            map.getView().fit(extent, {
-                padding: [50, 50, 50, 50],
-                maxZoom: 18
-            });
+                // Fit view to vector source extent
+                const extent = vectorSource.getExtent();
+                currentMap.getView().fit(extent, {
+                    padding: [50, 50, 50, 50],
+                    maxZoom: 18,
+                    duration: 1000
+                });
+            } catch (error) {
+                console.error('Error initializing map:', error);
+            }
         }
     </script>
 </body>

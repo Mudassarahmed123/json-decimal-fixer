@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GeoJSON Decimal Places Fixer</title>
+    <title>GeoJSON Tools</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v7.4.0/ol.css">
     <style>
         .spinner {
             border: 3px solid #f3f3f3;
@@ -25,329 +27,753 @@
             0% { opacity: 0; }
             100% { opacity: 1; }
         }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .tab {
+            display: none;
+        }
+        .tab.active {
+            display: block;
+        }
+        .file-drop-area {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            margin: 20px 0;
+            transition: all 0.3s ease;
+        }
+        .file-drop-area.dragover {
+            border-color: #4CAF50;
+            background-color: #f1f8e9;
+        }
+        .file-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+        }
+        .file-size {
+            color: #666;
+            font-size: 0.9em;
+        }
+        .success {
+            color: #4CAF50;
+        }
+        .error {
+            color: #f44336;
+        }
+        .download-link {
+            display: inline-block;
+            margin-top: 5px;
+            padding: 5px 10px;
+            background-color: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+        }
+        .download-link:hover {
+            background-color: #45a049;
+        }
+        .tab-button {
+            border-bottom-color: transparent;
+            transition: all 0.3s ease;
+        }
+        .tab-button.active {
+            border-bottom-color: currentColor;
+            color: #4299e1;
+        }
+        .process-button {
+            background-color: #4299e1;
+            color: white;
+            padding: 0.75rem 2rem;
+            border-radius: 0.375rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-top: 1.5rem;
+        }
+        .process-button:hover {
+            background-color: #3182ce;
+        }
+        .process-button:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+        .file-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            border-radius: 0.375rem;
+            background-color: #f7fafc;
+            margin-bottom: 0.5rem;
+            transition: all 0.2s ease;
+        }
+        .file-item:hover {
+            background-color: #edf2f7;
+        }
+        .file-size {
+            color: #718096;
+            font-size: 0.875rem;
+        }
+        .download-button {
+            background-color: #48bb78;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.3s ease;
+            margin-top: 0.5rem;
+        }
+        .download-button:hover {
+            background-color: #38a169;
+        }
+        .result-item {
+            background-color: #f7fafc;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+        .result-item.success {
+            border-left: 4px solid #48bb78;
+        }
+        .result-item.error {
+            border-left: 4px solid #f56565;
+        }
+        .map-container {
+            height: 600px;
+            margin-top: 1rem;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+        }
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        .ol-attribution {
+            font-size: 12px;
+        }
+        .validation-results-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+            align-items: start;
+        }
+        .validation-details {
+            background: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            height: fit-content;
+            max-width: 100%;
+        }
+        .map-preview {
+            background: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            height: fit-content;
+            position: sticky;
+            top: 1rem;
+            max-width: 100%;
+        }
+        #jsonValidator {
+            max-width: 100%;
+            margin: 0 auto;
+        }
     </style>
 </head>
-<body class="bg-gray-100">
-    <div class="container mx-auto px-4 py-8 max-w-4xl">
-        <!-- Header -->
-        <div class="text-center mb-8">
-            <h1 class="text-3xl font-bold text-gray-800 mb-2">GeoJSON Decimal Places Fixer</h1>
-            <p class="text-gray-600">Fix decimal places in your GeoJSON coordinates to meet EUDR requirements</p>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold mb-8 text-center">GeoJSON Tools</h1>
+        
+        <!-- Tab buttons -->
+        <div class="flex mb-4">
+            <button onclick="openTab('decimalFixer')" class="flex-1 py-3 px-6 text-lg font-medium flex items-center justify-center gap-2 border-b-2" id="decimalFixerTab">
+                <i class="fas fa-pencil-alt"></i>
+                Decimal Fixer
+            </button>
+            <button onclick="openTab('jsonValidator')" class="flex-1 py-3 px-6 text-lg font-medium flex items-center justify-center gap-2 border-b-2" id="jsonValidatorTab">
+                <i class="fas fa-check-circle"></i>
+                JSON Validator
+            </button>
         </div>
-
-        <form id="uploadForm" class="space-y-6">
-            <!-- Upload Section -->
-            <div class="bg-white rounded-lg shadow-lg p-6">
-                <h2 class="text-xl font-bold mb-4 flex items-center">
-                    <svg class="w-6 h-6 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-                    </svg>
-                    Upload Files
-                </h2>
-                <div 
-                    id="dropZone" 
-                    class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-blue-500 transition-colors"
-                >
-                    <div class="space-y-4">
-                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-                        </svg>
-                        <p class="text-gray-600">Drag & drop your GeoJSON files here</p>
-                        <p class="text-sm text-gray-500">or</p>
-                        <div class="space-x-4">
-                            <button type="button" id="browseFilesBtn" class="mt-2 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded inline-flex items-center">
-                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
-                                </svg>
-                                Select Files
-                            </button>
-                            <button type="button" id="browseDirBtn" class="mt-2 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded inline-flex items-center">
-                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
-                                </svg>
-                                Select Directory
-                            </button>
-                        </div>
-                    </div>
-                    <input type="file" id="fileInput" multiple accept=".json,.geojson" class="hidden">
-                    <input type="file" id="dirInput" webkitdirectory directory class="hidden">
+        
+        <!-- Decimal Fixer Tab -->
+        <div id="decimalFixer" class="tab active bg-white p-6 rounded-lg shadow-md">
+            <div class="file-drop-area" id="dropArea">
+                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'/%3E%3Cpolyline points='17 8 12 3 7 8'/%3E%3Cline x1='12' y1='3' x2='12' y2='15'/%3E%3C/svg%3E" 
+                     alt="Upload" class="mx-auto mb-4">
+                <p class="text-lg mb-4">Drag & drop your GeoJSON files here</p>
+                <p class="text-gray-500 mb-4">or</p>
+                <div class="flex justify-center gap-4">
+                    <button onclick="document.getElementById('fileInput').click()" 
+                            class="bg-blue-500 text-white px-6 py-2 rounded-md hover:bg-blue-600 transition-colors flex items-center gap-2">
+                        <i class="fas fa-file-upload"></i>
+                        Select Files
+                    </button>
+                    <button onclick="document.getElementById('directoryInput').click()"
+                            class="bg-green-500 text-white px-6 py-2 rounded-md hover:bg-green-600 transition-colors flex items-center gap-2">
+                        <i class="fas fa-folder-open"></i>
+                        Select Directory
+                    </button>
                 </div>
-
-                <!-- File List -->
-                <div id="fileList" class="mt-4 space-y-2"></div>
-                
-                <!-- Processing Status -->
-                <div id="processingStatus" class="mt-4 hidden">
-                    <div class="flex items-center space-x-2 text-blue-600">
-                        <div class="spinner"></div>
-                        <span>Processing files...</span>
+                <input type="file" id="fileInput" multiple accept=".json,.geojson" class="hidden">
+                <input type="file" id="directoryInput" webkitdirectory directory multiple class="hidden">
+            </div>
+            
+            <div id="fileList" class="mt-4"></div>
+            
+            <div id="options" class="mt-6">
+                <h3 class="text-xl font-semibold mb-4">Options</h3>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-gray-700 mb-2">Minimum Decimal Places</label>
+                        <input type="number" id="minDecimals" value="6" min="1" max="10" 
+                               class="w-full px-3 py-2 border rounded">
+                        <span class="text-sm text-gray-500">(1-10)</span>
                     </div>
-                    <div class="mt-2 bg-blue-100 rounded-full h-2">
-                        <div id="progressBar" class="bg-blue-600 rounded-full h-2 transition-all duration-300" style="width: 0%"></div>
+                    <div>
+                        <label class="block text-gray-700 mb-2">Output File Prefix</label>
+                        <input type="text" id="prefix" value="fixed_" 
+                               class="w-full px-3 py-2 border rounded">
                     </div>
                 </div>
             </div>
-
-            <!-- Options Section -->
-            <div class="bg-white rounded-lg shadow-lg p-6">
-                <h2 class="text-xl font-bold mb-4 flex items-center">
-                    <svg class="w-6 h-6 mr-2 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                    </svg>
-                    Options
-                </h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label class="block text-gray-700 text-sm font-bold mb-2">
-                            Minimum Decimal Places
-                        </label>
-                        <div class="relative">
-                            <input type="number" id="minDecimals" name="min_decimals" value="6" min="1" max="10"
-                                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                                <span class="text-gray-500 text-sm">(1-10)</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 text-sm font-bold mb-2">
-                            Output File Prefix
-                        </label>
-                        <input type="text" id="prefix" name="prefix" value="fixed_"
-                            class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                </div>
-            </div>
-
-            <!-- Submit Button -->
-            <div class="text-center">
-                <button type="submit" id="submitBtn" 
-                    class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-8 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                    </svg>
-                    Process Files
+            
+            <button id="processButton" onclick="processFiles()" style="display: none"
+                    class="process-button">
+                <i class="fas fa-cog"></i>
+                Process Files
+            </button>
+            
+            <div id="results" class="mt-6"></div>
+        </div>
+        
+        <!-- JSON Validator Tab -->
+        <div id="jsonValidator" class="tab bg-white p-6 rounded-lg shadow-md">
+            <div class="file-drop-area" id="validatorDropArea">
+                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'/%3E%3Cpolyline points='17 8 12 3 7 8'/%3E%3Cline x1='12' y1='3' x2='12' y2='15'/%3E%3C/svg%3E" 
+                     alt="Upload" class="mx-auto mb-4">
+                <p class="text-lg mb-4">Drag & drop your JSON/GeoJSON file here</p>
+                <p class="text-gray-500 mb-4">or</p>
+                <button onclick="document.getElementById('validatorFileInput').click()" 
+                        class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                    <i class="fas fa-file-upload mr-2"></i>Select File
                 </button>
+                <input type="file" id="validatorFileInput" accept=".json,.geojson" class="hidden">
             </div>
-        </form>
-
-        <!-- Results Section -->
-        <div id="results" class="mt-8 bg-white rounded-lg shadow-lg p-6 hidden">
-            <h2 class="text-xl font-bold mb-4 flex items-center">
-                <svg class="w-6 h-6 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
-                Processing Results
-            </h2>
-            <div id="resultsList" class="space-y-4"></div>
+            
+            <div id="validatorFileInfo" class="mt-4"></div>
+            
+            <button id="validateButton" onclick="validateSelectedFile()" 
+                    class="mt-4 w-full bg-green-500 text-white px-6 py-3 rounded hover:bg-green-600" 
+                    style="display: none">
+                <i class="fas fa-check-circle mr-2"></i>Validate File
+            </button>
+            
+            <div id="validatorResults" class="mt-6"></div>
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/ol@v7.4.0/dist/ol.js"></script>
+
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const form = document.getElementById('uploadForm');
-            const dropZone = document.getElementById('dropZone');
-            const fileInput = document.getElementById('fileInput');
-            const dirInput = document.getElementById('dirInput');
-            const browseFilesBtn = document.getElementById('browseFilesBtn');
-            const browseDirBtn = document.getElementById('browseDirBtn');
+        let currentFiles = null;
+
+        function resetFileInputs() {
+            document.getElementById('fileInput').value = '';
+            document.getElementById('directoryInput').value = '';
             const fileList = document.getElementById('fileList');
-            const results = document.getElementById('results');
-            const resultsList = document.getElementById('resultsList');
-            const submitBtn = document.getElementById('submitBtn');
-            const processingStatus = document.getElementById('processingStatus');
-            const progressBar = document.getElementById('progressBar');
-
-            browseFilesBtn.addEventListener('click', () => fileInput.click());
-            browseDirBtn.addEventListener('click', () => dirInput.click());
-
-            // Prevent default drag behaviors
-            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-                dropZone.addEventListener(eventName, preventDefaults, false);
-                document.body.addEventListener(eventName, preventDefaults, false);
-            });
-
-            // Highlight drop zone when item is dragged over it
-            ['dragenter', 'dragover'].forEach(eventName => {
-                dropZone.addEventListener(eventName, highlight, false);
-            });
-
-            ['dragleave', 'drop'].forEach(eventName => {
-                dropZone.addEventListener(eventName, unhighlight, false);
-            });
-
-            // Handle dropped files
-            dropZone.addEventListener('drop', handleDrop, false);
-            fileInput.addEventListener('change', handleFiles);
-            dirInput.addEventListener('change', handleFiles);
-
-            function handleFiles(event) {
-                const files = Array.from(event.target.files).filter(file => 
-                    file.name.endsWith('.json') || file.name.endsWith('.geojson')
-                );
-                
-                if (files.length === 0) {
-                    alert('No .json or .geojson files found in selection');
-                    return;
-                }
-
+            if (fileList) {
                 fileList.innerHTML = '';
-                files.forEach(file => {
-                    const fileDiv = document.createElement('div');
-                    fileDiv.className = 'flex items-center justify-between bg-gray-50 p-3 rounded fade-in';
-                    fileDiv.innerHTML = `
-                        <div class="flex items-center space-x-3">
-                            <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                            </svg>
-                            <span class="text-sm text-gray-700">${file.name}</span>
-                        </div>
-                        <span class="text-xs text-gray-500">${formatFileSize(file.size)}</span>
+            }
+            currentFiles = null;
+            const processButton = document.getElementById('processButton');
+            if (processButton) {
+                processButton.style.display = 'none';
+            }
+        }
+
+        function openTab(tabName) {
+            const tabs = document.getElementsByClassName('tab');
+            const tabButtons = document.getElementsByClassName('tab-button');
+            
+            // Hide all tabs
+            for (let tab of tabs) {
+                tab.classList.remove('active');
+            }
+            
+            // Deactivate all tab buttons
+            for (let button of tabButtons) {
+                button.classList.remove('active');
+            }
+            
+            // Show selected tab and activate its button
+            document.getElementById(tabName).classList.add('active');
+            document.getElementById(tabName + 'Tab').classList.add('active');
+            
+            // Reset file inputs when switching tabs
+            resetFileInputs();
+        }
+
+        // File input event listeners
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            currentFiles = e.target.files;
+            handleFiles(currentFiles);
+        });
+
+        document.getElementById('directoryInput').addEventListener('change', function(e) {
+            currentFiles = e.target.files;
+            handleFiles(currentFiles);
+        });
+
+        // Drag and drop handlers
+        const dropArea = document.getElementById('dropArea');
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight(e) {
+            dropArea.classList.add('dragover');
+        }
+
+        function unhighlight(e) {
+            dropArea.classList.remove('dragover');
+        }
+
+        dropArea.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            currentFiles = files;
+            handleFiles(files);
+        }
+
+        function handleFiles(files) {
+            const fileList = document.getElementById('fileList');
+            fileList.innerHTML = '';
+            
+            if (!files || files.length === 0) {
+                const processButton = document.getElementById('processButton');
+                if (processButton) {
+                    processButton.style.display = 'none';
+                }
+                return;
+            }
+            
+            let validFiles = 0;
+            const validFilesList = [];
+            
+            Array.from(files).forEach(file => {
+                const filePath = file.webkitRelativePath || file.name;
+                if (filePath.endsWith('.json') || filePath.endsWith('.geojson')) {
+                    validFiles++;
+                    validFilesList.push(file);
+                    
+                    const fileSize = (file.size / 1024).toFixed(1);
+                    const fileItem = document.createElement('div');
+                    fileItem.className = 'file-item';
+                    fileItem.innerHTML = `
+                        <i class="far fa-file-alt text-blue-500"></i>
+                        <span class="text-gray-700 flex-1">${filePath}</span>
+                        <span class="file-size">${fileSize} KB</span>
                     `;
-                    fileList.appendChild(fileDiv);
-                });
-
-                // Store filtered files back in the input that triggered the change
-                const dataTransfer = new DataTransfer();
-                files.forEach(file => dataTransfer.items.add(file));
-                event.target.files = dataTransfer.files;
-            }
-
-            function formatFileSize(bytes) {
-                if (bytes === 0) return '0 Bytes';
-                const k = 1024;
-                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-                const i = Math.floor(Math.log(bytes) / Math.log(k));
-                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-            }
-
-            form.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                submitBtn.disabled = true;
-                results.classList.add('hidden');
-                processingStatus.classList.remove('hidden');
-                progressBar.style.width = '0%';
-
-                try {
-                    const formData = new FormData();
-                    
-                    // Get files from both inputs
-                    const selectedFiles = fileInput.files.length > 0 ? fileInput.files : dirInput.files;
-                    
-                    if (selectedFiles.length === 0) {
-                        throw new Error('Please select at least one .json or .geojson file');
-                    }
-
-                    // Add files to form data
-                    Array.from(selectedFiles).forEach(file => {
-                        formData.append('files', file);
-                    });
-
-                    // Add other form data
-                    formData.append('min_decimals', document.getElementById('minDecimals').value);
-                    formData.append('prefix', document.getElementById('prefix').value);
-
-                    // Simulate progress
-                    let progress = 0;
-                    const progressInterval = setInterval(() => {
-                        progress += 5;
-                        if (progress > 90) clearInterval(progressInterval);
-                        progressBar.style.width = `${Math.min(progress, 90)}%`;
-                    }, 100);
-
-                    const response = await fetch('/process', {
-                        method: 'POST',
-                        body: formData
-                    });
-
-                    clearInterval(progressInterval);
-                    progressBar.style.width = '100%';
-
-                    if (!response.ok) {
-                        const contentType = response.headers.get('content-type');
-                        if (contentType && contentType.includes('application/json')) {
-                            const errorData = await response.json();
-                            throw new Error(errorData.detail || 'Processing failed');
-                        } else {
-                            throw new Error(`HTTP error! status: ${response.status}`);
-                        }
-                    }
-
-                    const result = await response.json();
-                    setTimeout(() => {
-                        processingStatus.classList.add('hidden');
-                        displayResults(result);
-                    }, 500);
-                    
-                } catch (error) {
-                    processingStatus.classList.add('hidden');
-                    alert(`Error: ${error.message}`);
-                } finally {
-                    submitBtn.disabled = false;
+                    fileList.appendChild(fileItem);
                 }
             });
-
-            function preventDefaults (e) {
-                e.preventDefault();
-                e.stopPropagation();
+            
+            // Store valid files for processing
+            currentFiles = validFilesList;
+            
+            const processButton = document.getElementById('processButton');
+            if (processButton) {
+                processButton.style.display = validFiles > 0 ? 'block' : 'none';
             }
+        }
 
-            function highlight(e) {
-                dropZone.classList.add('border-blue-500');
-                dropZone.classList.add('bg-blue-50');
+        function downloadProcessedFile(filename, data) {
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        }
+
+        async function processFiles() {
+            if (!currentFiles || currentFiles.length === 0) {
+                showMessage('Please select files to process', 'error');
+                return;
             }
-
-            function unhighlight(e) {
-                dropZone.classList.remove('border-blue-500');
-                dropZone.classList.remove('bg-blue-50');
-            }
-
-            function handleDrop(e) {
-                const dt = e.dataTransfer;
-                const files = dt.files;
-                fileInput.files = files;
-                handleFiles({ target: { files } });
-            }
-
-            function displayResults(data) {
-                results.classList.remove('hidden');
-                resultsList.innerHTML = '';
-
-                data.processed_files.forEach(file => {
-                    const resultDiv = document.createElement('div');
-                    resultDiv.className = 'bg-gray-50 rounded p-4 fade-in';
-                    
-                    const blob = new Blob([JSON.stringify(file.processed_data, null, 2)], {
-                        type: 'application/json'
-                    });
-                    const url = URL.createObjectURL(blob);
-                    
-                    resultDiv.innerHTML = `
-                        <div class="flex items-center justify-between">
-                            <div class="space-y-1">
-                                <div class="flex items-center space-x-2">
-                                    <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                    </svg>
-                                    <p class="font-semibold">${file.original_name}</p>
-                                </div>
-                                <p class="text-sm text-gray-600">Processed as: ${file.processed_name}</p>
-                            </div>
-                            <a href="${url}" download="${file.processed_name}" 
-                               class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded inline-flex items-center">
-                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                                </svg>
-                                Download
-                            </a>
-                        </div>
-                    `;
-                    
-                    resultsList.appendChild(resultDiv);
+            
+            const minDecimals = document.getElementById('minDecimals').value;
+            const prefix = document.getElementById('prefix').value || 'fixed_';  // Default to 'fixed_' if empty
+            
+            const formData = new FormData();
+            Array.from(currentFiles).forEach(file => {
+                const filePath = file.webkitRelativePath || file.name;
+                if (filePath.endsWith('.json') || filePath.endsWith('.geojson')) {
+                    formData.append('files', file);
+                }
+            });
+            formData.append('min_decimals', minDecimals);
+            formData.append('prefix', prefix);
+            
+            // Show loading state
+            const processButton = document.getElementById('processButton');
+            const originalText = processButton.innerHTML;
+            processButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing...';
+            processButton.disabled = true;
+            
+            try {
+                const response = await fetch('/process', {
+                    method: 'POST',
+                    body: formData
                 });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const results = await response.json();
+                displayResults(results);
+            } catch (error) {
+                showMessage(`Error: ${error.message}`, 'error');
+            } finally {
+                // Reset button state
+                processButton.innerHTML = originalText;
+                processButton.disabled = false;
             }
+        }
+
+        function displayResults(results) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<h3 class="text-xl font-semibold mb-4">Processing Results:</h3>';
+            
+            Object.entries(results).forEach(([filename, result]) => {
+                const resultItem = document.createElement('div');
+                resultItem.className = `result-item ${result.success ? 'success' : 'error'}`;
+                
+                const icon = result.success ? '✅' : '❌';
+                resultItem.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <span class="text-lg">${icon}</span>
+                        <span class="font-medium">${filename}</span>
+                    </div>
+                    <p class="mt-1 text-gray-600">${result.message}</p>
+                `;
+                
+                if (result.success && result.data) {
+                    const downloadButton = document.createElement('button');
+                    downloadButton.className = 'download-button';
+                    downloadButton.innerHTML = '<i class="fas fa-download"></i> Download processed file';
+                    downloadButton.onclick = () => downloadProcessedFile(result.filename, result.data);
+                    resultItem.appendChild(downloadButton);
+                }
+                
+                resultsDiv.appendChild(resultItem);
+            });
+        }
+
+        function showMessage(message, type = 'info') {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = `<div class="${type}">${message}</div>`;
+        }
+
+        // JSON Validator
+        const validatorDropArea = document.getElementById('validatorDropArea');
+        const validatorFileInput = document.getElementById('validatorFileInput');
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            validatorDropArea.addEventListener(eventName, preventDefaults, false);
         });
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            validatorDropArea.addEventListener(eventName, () => {
+                validatorDropArea.classList.add('dragover');
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            validatorDropArea.addEventListener(eventName, () => {
+                validatorDropArea.classList.remove('dragover');
+            }, false);
+        });
+
+        validatorDropArea.addEventListener('drop', handleValidatorDrop, false);
+        validatorFileInput.addEventListener('change', handleValidatorFileSelect, false);
+
+        function handleValidatorDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files.length > 0) {
+                const file = files[0];
+                const validatorFileInfo = document.getElementById('validatorFileInfo');
+                validatorFileInfo.innerHTML = `
+                    <div class="file-item bg-gray-50 rounded p-2 mb-4">
+                        <i class="far fa-file-alt text-blue-500"></i>
+                        <span class="text-gray-700">${file.name}</span>
+                        <span class="file-size">(${(file.size / 1024).toFixed(1)} KB)</span>
+                    </div>
+                `;
+                const validateButton = document.getElementById('validateButton');
+                validateButton.style.display = 'block';
+            }
+        }
+
+        function handleValidatorFileSelect(e) {
+            const files = e.target.files;
+            if (files.length > 0) {
+                const file = files[0];
+                const validatorFileInfo = document.getElementById('validatorFileInfo');
+                validatorFileInfo.innerHTML = `
+                    <div class="file-item bg-gray-50 rounded p-2 mb-4">
+                        <i class="far fa-file-alt text-blue-500"></i>
+                        <span class="text-gray-700">${file.name}</span>
+                        <span class="file-size">(${(file.size / 1024).toFixed(1)} KB)</span>
+                    </div>
+                `;
+                const validateButton = document.getElementById('validateButton');
+                validateButton.style.display = 'block';
+            }
+        }
+
+        function validateSelectedFile() {
+            const validatorFileInput = document.getElementById('validatorFileInput');
+            if (validatorFileInput.files.length > 0) {
+                validateFile(validatorFileInput.files[0]);
+            }
+        }
+
+        async function validateFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            try {
+                const response = await fetch('/validate', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // Store the file content for map display
+                if (data.geometry_valid) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        window.currentGeoJSON = JSON.parse(e.target.result);
+                    };
+                    reader.readAsText(file);
+                }
+                
+                displayValidationResults(data);
+            } catch (error) {
+                const validatorResults = document.getElementById('validatorResults');
+                validatorResults.innerHTML = `
+                    <div class="error-box">
+                        <h3>❌ Error</h3>
+                        <p>${error.message}</p>
+                    </div>`;
+            }
+        }
+
+        function displayValidationResults(data) {
+            const validatorResults = document.getElementById('validatorResults');
+            validatorResults.innerHTML = '';
+            
+            // Create container for results and map
+            let resultsHTML = `<div class="validation-results-container">`;
+            
+            // Left column - Validation Results
+            resultsHTML += `<div class="validation-details p-6 space-y-4">`;
+            
+            // First check JSON structure
+            if (!data.structure_valid) {
+                resultsHTML += `
+                    <div class="error-box bg-red-50 border-l-4 border-red-500 p-4">
+                        <h3 class="text-red-700 font-semibold">❌ JSON Structure Invalid</h3>
+                        <pre class="mt-2 text-red-600 bg-red-50 p-3 rounded overflow-auto">${data.structure_errors}</pre>
+                    </div>`;
+                validatorResults.innerHTML = resultsHTML + '</div></div>';
+                return;
+            }
+            
+            // Show JSON structure is valid
+            resultsHTML += `
+                <div class="success-box bg-green-50 border-l-4 border-green-500 p-4">
+                    <h3 class="text-green-700 font-semibold">✅ JSON/GeoJSON structure is valid</h3>
+                </div>`;
+            
+            if (!data.is_geojson) {
+                resultsHTML += `
+                    <div class="warning-box bg-yellow-50 border-l-4 border-yellow-500 p-4">
+                        <h3 class="text-yellow-700 font-semibold">⚠️ Not a GeoJSON File</h3>
+                        <p class="mt-2">The file is valid JSON but not a GeoJSON file.</p>
+                    </div>`;
+                validatorResults.innerHTML = resultsHTML + '</div></div>';
+                return;
+            }
+            
+            // Add Geometry Validation Results section
+            resultsHTML += `
+                <div class="validation-section">
+                    <h3 class="text-xl font-semibold mb-4">=== Geometry Validation Results ===</h3>
+                    
+                    <div class="info-box bg-blue-50 border-l-4 border-blue-500 p-4 mb-4">
+                        <p class="text-blue-700">ℹ️ File contains ${data.feature_count} feature(s)</p>
+                    </div>`;
+            
+            // Add Geometry Types Summary first
+            resultsHTML += `
+                <div class="geometry-summary bg-gray-50 border-l-4 border-gray-500 p-4 mb-4">
+                    <h4 class="text-lg font-semibold text-gray-700 mb-2">📊 Geometry Types Summary:</h4>
+                    <ul class="list-none space-y-2">`;
+            
+            for (const [type, count] of Object.entries(data.geometry_types)) {
+                resultsHTML += `
+                    <li class="text-gray-600">
+                        • ${type}: ${count} feature(s)
+                    </li>`;
+            }
+            resultsHTML += `</ul></div>`;
+            
+            // Add Invalid Geometry Issues if any
+            if (Object.keys(data.invalid).length > 0) {
+                resultsHTML += `
+                    <div class="invalid-issues bg-red-50 border-l-4 border-red-500 p-4 mb-4">
+                        <h4 class="text-lg font-semibold text-red-700 mb-2">🔴 Invalid Geometry Issues:</h4>
+                        <ul class="list-none space-y-2">`;
+                
+                for (const [issue, features] of Object.entries(data.invalid)) {
+                    const issueName = issue.split('_')
+                        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                        .join(' ');
+                    resultsHTML += `
+                        <li class="text-red-600">
+                            • ${issueName} in feature(s): ${features.join(', ')}
+                        </li>`;
+                }
+                resultsHTML += `</ul></div>`;
+            }
+            
+            // Add Final Result
+            const finalResultClass = data.geometry_valid ? 'bg-green-50 border-green-500 text-green-700' : 'bg-red-50 border-red-500 text-red-700';
+            const finalResultIcon = data.geometry_valid ? '✅' : '❌';
+            const finalResultText = data.geometry_valid ? 'All geometries are valid.' : 'Some geometries need fixing.';
+            
+            resultsHTML += `
+                <div class="final-result ${finalResultClass} border-l-4 p-4">
+                    <h4 class="text-lg font-semibold">${finalResultIcon} Final Result: ${finalResultText}</h4>
+                </div>`;
+            
+            resultsHTML += '</div></div>';  // Close validation-details
+            
+            // Right column - Map Preview
+            resultsHTML += `
+                <div class="map-preview p-6">
+                    <h4 class="text-lg font-semibold mb-4">🗺️ GeoJSON Preview</h4>
+                    <div class="map-container">
+                        <div id="map"></div>
+                    </div>
+                </div>`;
+            
+            resultsHTML += '</div>';  // Close validation-results-container
+            validatorResults.innerHTML = resultsHTML;
+            
+            // Initialize map
+            if (data.geometry_valid) {
+                initMap();
+            }
+        }
+
+        function initMap() {
+            if (!window.currentGeoJSON) return;
+
+            // Create vector source from GeoJSON
+            const vectorSource = new ol.source.Vector({
+                features: new ol.format.GeoJSON().readFeatures(window.currentGeoJSON, {
+                    featureProjection: 'EPSG:3857'
+                })
+            });
+
+            // Create vector layer
+            const vectorLayer = new ol.layer.Vector({
+                source: vectorSource,
+                style: new ol.style.Style({
+                    fill: new ol.style.Fill({
+                        color: 'rgba(66, 153, 225, 0.2)'
+                    }),
+                    stroke: new ol.style.Stroke({
+                        color: '#4299e1',
+                        width: 2
+                    }),
+                    image: new ol.style.Circle({
+                        radius: 7,
+                        fill: new ol.style.Fill({
+                            color: '#4299e1'
+                        })
+                    })
+                })
+            });
+
+            // Create map
+            const map = new ol.Map({
+                target: 'map',
+                layers: [
+                    new ol.layer.Tile({
+                        source: new ol.source.OSM()
+                    }),
+                    vectorLayer
+                ],
+                view: new ol.View({
+                    center: [0, 0],
+                    zoom: 2
+                })
+            });
+
+            // Fit view to vector source extent
+            const extent = vectorSource.getExtent();
+            map.getView().fit(extent, {
+                padding: [50, 50, 50, 50],
+                maxZoom: 18
+            });
+        }
     </script>
 </body>
 </html>

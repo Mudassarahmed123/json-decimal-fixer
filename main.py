@@ -378,15 +378,25 @@ async def validate_file(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+def count_decimal_places(num):
+    """Count the number of decimal places in a number."""
+    str_num = str(abs(num))
+    if '.' in str_num:
+        return len(str_num.split('.')[1])
+    return 0
+
+def fix_coordinates(coordinates, min_decimals):
+    """Fix coordinates to have minimum decimal places."""
+    if isinstance(coordinates, (int, float)):
+        decimals = count_decimal_places(coordinates)
+        if decimals < min_decimals:
+            adjustment = 0.0000001 if coordinates >= 0 else -0.0000001
+            return coordinates + adjustment
+        return coordinates
+    return [fix_coordinates(coord, min_decimals) for coord in coordinates]
+
 def process_geojson(data: Dict, min_decimals: int) -> Dict:
     """Process GeoJSON coordinates to fix decimal places."""
-    def fix_coordinates(coords, min_decimals):
-        if isinstance(coords, list):
-            if coords and isinstance(coords[0], (int, float)):
-                return [round(float(x), min_decimals) for x in coords]
-            return [fix_coordinates(x, min_decimals) for x in coords]
-        return coords
-
     # Create a deep copy to avoid modifying the original
     processed_data = json.loads(json.dumps(data))
     
@@ -436,7 +446,15 @@ async def process_files(
                     "message": f"Invalid JSON: {str(e)}"
                 }
                 continue
-                
+            
+            # Validate if it's a GeoJSON file
+            if not isinstance(data, dict) or data.get("type") not in ["Feature", "FeatureCollection"]:
+                results[file.filename] = {
+                    "success": False,
+                    "message": "File is not a valid GeoJSON file"
+                }
+                continue
+            
             # Process GeoJSON
             try:
                 processed_data = process_geojson(data, min_decimals)

@@ -8,6 +8,54 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v7.4.0/ol.css">
     <style>
+        body {
+            background-color: #f7fafc;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .tab-button {
+            border-bottom-width: 2px;
+            border-bottom-color: transparent;
+            transition: all 0.3s ease;
+            position: relative;
+            color: #718096;
+        }
+
+        .tab-button.active {
+            border-bottom-color: #4299e1;
+            color: #4299e1;
+            font-weight: 600;
+        }
+
+        .tab-button:hover:not(.active) {
+            color: #2d3748;
+            border-bottom-color: #e2e8f0;
+        }
+
+        .flex.mb-4 {
+            background: white;
+            border-radius: 0.5rem 0.5rem 0 0;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .tab {
+            display: none;
+            background: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+        }
+
+        .tab.active {
+            display: block;
+        }
+
         .spinner {
             border: 3px solid #f3f3f3;
             border-radius: 50%;
@@ -31,12 +79,6 @@
             display: none;
         }
         .tab-content.active {
-            display: block;
-        }
-        .tab {
-            display: none;
-        }
-        .tab.active {
             display: block;
         }
         .file-drop-area {
@@ -79,14 +121,6 @@
         }
         .download-link:hover {
             background-color: #45a049;
-        }
-        .tab-button {
-            border-bottom-color: transparent;
-            transition: all 0.3s ease;
-        }
-        .tab-button.active {
-            border-bottom-color: currentColor;
-            color: #4299e1;
         }
         .process-button {
             background-color: #4299e1;
@@ -199,19 +233,21 @@
     <div class="container mx-auto px-4 py-8">
         <h1 class="text-3xl font-bold mb-8 text-center">GeoJSON Tools</h1>
         
-        <!-- Tab buttons -->
         <div class="flex mb-4">
-            <button onclick="openTab('decimalFixer')" class="flex-1 py-3 px-6 text-lg font-medium flex items-center justify-center gap-2 border-b-2" id="decimalFixerTab">
+            <button onclick="openTab('decimalFixer')" 
+                    class="tab-button flex-1 py-4 px-6 text-lg font-medium flex items-center justify-center gap-2 active" 
+                    id="decimalFixerTab">
                 <i class="fas fa-pencil-alt"></i>
                 Decimal Fixer
             </button>
-            <button onclick="openTab('jsonValidator')" class="flex-1 py-3 px-6 text-lg font-medium flex items-center justify-center gap-2 border-b-2" id="jsonValidatorTab">
+            <button onclick="openTab('jsonValidator')" 
+                    class="tab-button flex-1 py-4 px-6 text-lg font-medium flex items-center justify-center gap-2" 
+                    id="jsonValidatorTab">
                 <i class="fas fa-check-circle"></i>
                 JSON Validator
             </button>
         </div>
         
-        <!-- Decimal Fixer Tab -->
         <div id="decimalFixer" class="tab active bg-white p-6 rounded-lg shadow-md">
             <div class="file-drop-area" id="dropArea">
                 <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'/%3E%3Cpolyline points='17 8 12 3 7 8'/%3E%3Cline x1='12' y1='3' x2='12' y2='15'/%3E%3C/svg%3E" 
@@ -262,7 +298,6 @@
             <div id="results" class="mt-6"></div>
         </div>
         
-        <!-- JSON Validator Tab -->
         <div id="jsonValidator" class="tab bg-white p-6 rounded-lg shadow-md">
             <div class="file-drop-area" id="validatorDropArea">
                 <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'/%3E%3Cpolyline points='17 8 12 3 7 8'/%3E%3Cline x1='12' y1='3' x2='12' y2='15'/%3E%3C/svg%3E" 
@@ -309,21 +344,23 @@
         }
 
         function openTab(tabName) {
-            const tabs = document.getElementsByClassName('tab');
-            const tabButtons = document.getElementsByClassName('tab-button');
-            
             // Hide all tabs
+            const tabs = document.getElementsByClassName('tab');
             for (let tab of tabs) {
+                tab.style.display = 'none';
                 tab.classList.remove('active');
             }
             
-            // Deactivate all tab buttons
+            // Remove active class from all tab buttons
+            const tabButtons = document.getElementsByClassName('tab-button');
             for (let button of tabButtons) {
                 button.classList.remove('active');
             }
             
             // Show selected tab and activate its button
-            document.getElementById(tabName).classList.add('active');
+            const selectedTab = document.getElementById(tabName);
+            selectedTab.style.display = 'block';
+            selectedTab.classList.add('active');
             document.getElementById(tabName + 'Tab').classList.add('active');
             
             // Clean up map when switching tabs
@@ -335,6 +372,11 @@
             // Reset file inputs when switching tabs
             resetFileInputs();
         }
+
+        // Set decimal fixer as active by default when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            openTab('decimalFixer');
+        });
 
         // File input event listeners
         document.getElementById('fileInput').addEventListener('change', function(e) {

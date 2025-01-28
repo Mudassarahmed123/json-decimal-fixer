@@ -380,42 +380,66 @@ async def validate_file(file: UploadFile = File(...)):
 
 def count_decimal_places(num):
     """Count the number of decimal places in a number."""
-    str_num = str(abs(num))
+    str_num = str(abs(float(num)))
     if '.' in str_num:
-        return len(str_num.split('.')[1])
+        decimals = len(str_num.split('.')[1])
+        # Remove trailing zeros
+        str_decimals = str_num.split('.')[1].rstrip('0')
+        return len(str_decimals) if str_decimals else 0
     return 0
 
 def fix_coordinates(coordinates, min_decimals):
-    """Fix coordinates to have minimum decimal places."""
+    """Fix coordinates to have exactly the specified number of decimal places."""
     if isinstance(coordinates, (int, float)):
-        decimals = count_decimal_places(coordinates)
-        if decimals < min_decimals:
-            adjustment = 0.0000001 if coordinates >= 0 else -0.0000001
-            return coordinates + adjustment
-        return coordinates
-    return [fix_coordinates(coord, min_decimals) for coord in coordinates]
+        str_num = str(abs(float(coordinates)))
+        parts = str_num.split('.')
+        
+        # Handle cases with no decimal point
+        if len(parts) == 1:
+            parts.append('0')
+            
+        whole = parts[0]
+        decimal = parts[1] if len(parts) > 1 else ''
+        
+        # If we have fewer decimals than required
+        if len(decimal) < min_decimals:
+            # Pad with zeros first
+            decimal = decimal.ljust(min_decimals - 1, '0')
+            # Add '1' at the end
+            decimal = decimal + '1'
+            # Construct the new number
+            result = float(f"{whole}.{decimal}")
+            # Apply original sign
+            return -result if coordinates < 0 else result
+        else:
+            # Just format to required decimals
+            format_str = f"{{:.{min_decimals}f}}"
+            return float(format_str.format(float(coordinates)))
+    elif isinstance(coordinates, list):
+        return [fix_coordinates(coord, min_decimals) for coord in coordinates]
+    return coordinates
 
 def process_geojson(data: Dict, min_decimals: int) -> Dict:
     """Process GeoJSON coordinates to fix decimal places."""
-    # Create a deep copy to avoid modifying the original
-    processed_data = json.loads(json.dumps(data))
-    
-    if processed_data.get("type") == "FeatureCollection":
-        features = processed_data.get("features", [])
+    if not isinstance(data, dict):
+        return data
+        
+    if data.get("type") == "FeatureCollection":
+        features = data.get("features", [])
         for feature in features:
-            if "geometry" in feature and "coordinates" in feature["geometry"]:
+            if feature.get("geometry") and feature["geometry"].get("coordinates"):
                 feature["geometry"]["coordinates"] = fix_coordinates(
                     feature["geometry"]["coordinates"],
                     min_decimals
                 )
-    elif processed_data.get("type") == "Feature":
-        if "geometry" in processed_data and "coordinates" in processed_data["geometry"]:
-            processed_data["geometry"]["coordinates"] = fix_coordinates(
-                processed_data["geometry"]["coordinates"],
+    elif data.get("type") == "Feature":
+        if data.get("geometry") and data["geometry"].get("coordinates"):
+            data["geometry"]["coordinates"] = fix_coordinates(
+                data["geometry"]["coordinates"],
                 min_decimals
             )
     
-    return processed_data
+    return data
 
 @router.post("/process")
 async def process_files(

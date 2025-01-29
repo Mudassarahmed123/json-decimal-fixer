@@ -7,6 +7,8 @@ import os
 from typing import List, Dict, Any, Tuple, Union
 from pathlib import Path
 from shapely.geometry import shape
+from shapely.ops import transform
+from pyproj import Transformer, CRS
 
 app = FastAPI(title="GeoJSON Tools")
 
@@ -441,6 +443,47 @@ def process_geojson(data: Dict, min_decimals: int) -> Dict:
     
     return data
 
+def calculate_area(geojson_data):
+    """
+    Calculate areas for all polygons in the GeoJSON.
+    Returns a list of dictionaries with feature index and area in square meters.
+    """
+    areas = []
+    
+    # Create transformer from WGS84 to Web Mercator for accurate area calculation
+    transformer = Transformer.from_crs(CRS.from_epsg(4326), CRS.from_epsg(3857), always_xy=True)
+    
+    if geojson_data["type"] == "FeatureCollection":
+        features = geojson_data["features"]
+    else:
+        features = [geojson_data]
+    
+    for idx, feature in enumerate(features):
+        if feature.get("geometry", {}).get("type") in ["Polygon", "MultiPolygon"]:
+            try:
+                # Create Shapely geometry
+                geom = shape(feature["geometry"])
+                
+                # Transform coordinates to Web Mercator
+                transformed_geom = transform(transformer.transform, geom)
+                
+                # Calculate area in square meters
+                area = transformed_geom.area
+                
+                areas.append({
+                    "index": idx,
+                    "area": round(area, 2)  # Round to 2 decimal places
+                })
+            except Exception as e:
+                print(f"Error calculating area for feature {idx}: {str(e)}")
+                areas.append({
+                    "index": idx,
+                    "area": None,
+                    "error": str(e)
+                })
+    
+    return areas
+
 @router.post("/process")
 async def process_files(
     files: List[UploadFile] = File(...),
@@ -461,50 +504,42 @@ async def process_files(
             content = await file.read()
             content_str = content.decode()
             
-            # Parse JSON
-            try:
-                data = json.loads(content_str)
-            except json.JSONDecodeError as e:
-                results[file.filename] = {
-                    "success": False,
-                    "message": f"Invalid JSON: {str(e)}"
-                }
-                continue
+            # Parse original JSON
+            original_data = json.loads(content_str)
             
-            # Validate if it's a GeoJSON file
-            if not isinstance(data, dict) or data.get("type") not in ["Feature", "FeatureCollection"]:
-                results[file.filename] = {
-                    "success": False,
-                    "message": "File is not a valid GeoJSON file"
-                }
-                continue
+            # Calculate original areas
+            original_areas = calculate_area(original_data) if isinstance(original_data, dict) else []
             
             # Process GeoJSON
-            try:
-                processed_data = process_geojson(data, min_decimals)
-                
-                # Create output filename with prefix
-                output_filename = f"{prefix}{file.filename}"
-                
-                # Convert processed data back to JSON string
-                processed_json = json.dumps(processed_data, indent=2)
-                
-                results[file.filename] = {
-                    "success": True,
-                    "message": f"Successfully processed file",
-                    "filename": output_filename,
-                    "data": processed_json
-                }
-            except Exception as e:
-                results[file.filename] = {
-                    "success": False,
-                    "message": f"Error processing file: {str(e)}"
-                }
-                
+            processed_data = process_geojson(original_data, min_decimals)
+            
+            # Calculate areas after processing
+            processed_areas = calculate_area(processed_data) if isinstance(processed_data, dict) else []
+            
+            # Create area comparison data
+            area_comparison = []
+            for orig, proc in zip(original_areas, processed_areas):
+                if orig["area"] is not None and proc["area"] is not None:
+                    area_comparison.append({
+                        "index": orig["index"],
+                        "original_area": orig["area"],
+                        "processed_area": proc["area"],
+                        "difference": proc["area"] - orig["area"],
+                        "difference_percentage": ((proc["area"] - orig["area"]) / orig["area"]) * 100 if orig["area"] != 0 else 0
+                    })
+            
+            results[file.filename] = {
+                "success": True,
+                "message": "Successfully processed file",
+                "filename": f"{prefix}{file.filename}",
+                "data": json.dumps(processed_data, indent=2),
+                "area_comparison": area_comparison
+            }
+            
         except Exception as e:
             results[file.filename] = {
                 "success": False,
-                "message": f"Error reading file: {str(e)}"
+                "message": f"Error processing file: {str(e)}"
             }
     
     return results

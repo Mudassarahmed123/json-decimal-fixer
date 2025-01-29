@@ -227,6 +227,56 @@
             max-width: 100%;
             margin: 0 auto;
         }
+        .area-button {
+            background-color: #805ad5;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.3s ease;
+        }
+        .area-button:hover {
+            background-color: #6b46c1;
+        }
+        .modal {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            max-width: 80vw;
+            width: 100%;
+            max-height: 80vh;
+            overflow: auto;
+        }
+        .area-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        .area-table th,
+        .area-table td {
+            border: 1px solid #e2e8f0;
+            padding: 0.75rem;
+            text-align: right;
+        }
+        .area-table th {
+            background-color: #f7fafc;
+            font-weight: 600;
+            text-align: center;
+        }
+        .area-table tr:nth-child(even) {
+            background-color: #f7fafc;
+        }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
@@ -545,14 +595,78 @@
                 `;
                 
                 if (result.success && result.data) {
+                    const buttonsDiv = document.createElement('div');
+                    buttonsDiv.className = 'flex gap-2 mt-4';
+                    
+                    // Download button
                     const downloadButton = document.createElement('button');
                     downloadButton.className = 'download-button';
                     downloadButton.innerHTML = '<i class="fas fa-download"></i> Download processed file';
                     downloadButton.onclick = () => downloadProcessedFile(result.filename, result.data);
-                    resultItem.appendChild(downloadButton);
+                    
+                    // Area comparison button (only if there are areas to compare)
+                    if (result.area_comparison && result.area_comparison.length > 0) {
+                        const areaButton = document.createElement('button');
+                        areaButton.className = 'area-button';
+                        areaButton.innerHTML = '<i class="fas fa-chart-bar"></i> View Area Comparison';
+                        areaButton.onclick = () => showAreaComparison(result.area_comparison);
+                        buttonsDiv.appendChild(areaButton);
+                    }
+                    
+                    buttonsDiv.appendChild(downloadButton);
+                    resultItem.appendChild(buttonsDiv);
                 }
                 
                 resultsDiv.appendChild(resultItem);
+            });
+        }
+
+        function showAreaComparison(areaData) {
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-semibold">Area Comparison (in square meters)</h3>
+                        <button class="text-gray-500 hover:text-gray-700" onclick="this.closest('.modal').remove()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="area-table">
+                            <thead>
+                                <tr>
+                                    <th>Feature Index</th>
+                                    <th>Original Area (m²)</th>
+                                    <th>Processed Area (m²)</th>
+                                    <th>Difference (m²)</th>
+                                    <th>Difference (%)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${areaData.map(item => `
+                                    <tr>
+                                        <td class="text-center">${item.index}</td>
+                                        <td>${item.original_area.toLocaleString()}</td>
+                                        <td>${item.processed_area.toLocaleString()}</td>
+                                        <td>${item.difference.toLocaleString()}</td>
+                                        <td>${item.difference_percentage.toFixed(4)}%</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Close modal when clicking outside
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.remove();
+                }
             });
         }
 
